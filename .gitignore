@@ -10,8 +10,8 @@ venv/
 .vscode/
 .idea/
 *.iml
-.env/
-.app.log/
+.env
+.app.log
 *.log
 *.xml
 *.so
