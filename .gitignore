@@ -10,6 +10,7 @@ venv/
 .vscode/
 .idea/
 *.iml
+.env/
 .app.log/
 *.log
 *.xml
