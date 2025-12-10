@@ -3,7 +3,7 @@ FROM python:3.13-slim
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-WORKDIR /lab1
+WORKDIR /library
 
 RUN pip install --upgrade pip wheel poetry
 
