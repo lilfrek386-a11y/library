@@ -38,29 +38,29 @@ async def database_exception_handler(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # redis = Redis(
-    #     host=settings.redis.host,
-    #     port=settings.redis.port,
-    #     db=settings.redis.db.cache,
-    #     decode_responses=False,
-    # )
+    redis = Redis(
+        host=settings.redis.host,
+        port=settings.redis.port,
+        db=settings.redis.db.cache,
+        decode_responses=False,
+    )
     FastAPICache.init(
-        InMemoryBackend(),
+        RedisBackend(redis),
         prefix=settings.cache.prefix,
     )
     try:
-        #await redis.ping()
+        await redis.ping()
         logger.info("Redis is connected")
 
         logger.info("Try to set a test key")
-        #await redis.set("test_startup_key", "working")
+        await redis.set("test_startup_key", "working")
     except Exception as e:
 
         logger.warning(f"Redis is not connected", exc_info=e)
         raise e
     logger.info("Test set complete")
     yield
-    #await redis.close()
+    await redis.close()
 
 
 app = FastAPI(lifespan=lifespan)
