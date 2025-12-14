@@ -2,8 +2,8 @@ from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
 
 class AuthorBase(BaseModel):
-    first_name: str
-    last_name: str
+    first_name: str = Field(min_length=1)
+    last_name: str = Field(min_length=1)
     age: int = Field(ge=0, le=135)
     bio: str | None = Field(None, max_length=1000)
     email: EmailStr
