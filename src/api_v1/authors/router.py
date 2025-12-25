@@ -1,13 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, status, Depends, HTTPException
+from fastapi import APIRouter, status, Depends
 from fastapi_cache.decorator import cache
 
-from src.api_v1.authors.author_repository import AuthorsRepository
-from .dependencies import get_author_repository
-from .schemas import AuthorId, AuthorUpdate, AuthorUpdatePartial, AuthorCreate
 from src.core.utils import custom_key_builder
 from src.core.config import settings
+from .dependencies import get_author_service
+from .schemas import AuthorId, AuthorUpdate, AuthorUpdatePartial, AuthorCreate
+from .service import AuthorsService
 
 router = APIRouter(prefix="/authors", tags=["Автори"])
 
@@ -20,16 +20,9 @@ router = APIRouter(prefix="/authors", tags=["Автори"])
 )
 async def get_author(
     author_id: int,
-    author_repo: Annotated["AuthorsRepository", Depends(get_author_repository)],
-) -> AuthorId | None:
-    author = await author_repo.get_author(author_id)
-
-    if not author:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Author not found"
-        )
-    author_dto = AuthorId.model_validate(author)
-    return author_dto
+    author_service: Annotated[AuthorsService, Depends(get_author_service)],
+) -> AuthorId:
+    return await author_service.get_author(author_id)
 
 
 @router.get("/", summary="Отримати всіх авторів", response_model=list[AuthorId])
@@ -39,13 +32,9 @@ async def get_author(
     namespace=settings.cache.namespace.authors.authors_list,
 )
 async def get_authors(
-    author_repo: Annotated["AuthorsRepository", Depends(get_author_repository)],
+    author_service: Annotated[AuthorsService, Depends(get_author_service)],
 ) -> list[AuthorId]:
-    authors = await author_repo.get_authors()
-
-    authors_dto = [AuthorId.model_validate(a) for a in authors]
-
-    return authors_dto
+    return await author_service.get_authors()
 
 
 @router.post(
@@ -56,32 +45,18 @@ async def get_authors(
 )
 async def create_author(
     new_author: AuthorCreate,
-    author_repo: Annotated["AuthorsRepository", Depends(get_author_repository)],
+    author_service: Annotated[AuthorsService, Depends(get_author_service)],
 ) -> AuthorId:
-
-    author = await author_repo.create_author(new_author)
-
-    author_dto = AuthorId.model_validate(author)
-    return author_dto
+    return await author_service.create_author(new_author)
 
 
-@router.put("/{author_id}", summary="Оновити дані про автора")
+@router.put("/{author_id}", summary="Оновити дані про автора", response_model=AuthorId)
 async def update_author(
     author_id: int,
     author_update: AuthorUpdate,
-    author_repo: Annotated["AuthorsRepository", Depends(get_author_repository)],
+    author_service: Annotated[AuthorsService, Depends(get_author_service)],
 ) -> AuthorId:
-
-    author = await author_repo.update_author(author_id, author_update)
-
-    if not author:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Author not found"
-        )
-
-    author_dto = AuthorId.model_validate(author)
-
-    return author_dto
+    return await author_service.update_author(author_id, author_update)
 
 
 @router.patch(
@@ -90,18 +65,9 @@ async def update_author(
 async def update_author_partial(
     author_id: int,
     author_update: AuthorUpdatePartial,
-    author_repo: Annotated["AuthorsRepository", Depends(get_author_repository)],
+    author_service: Annotated[AuthorsService, Depends(get_author_service)],
 ) -> AuthorId:
-    author = await author_repo.update_author(author_id, author_update, partial=True)
-
-    if not author:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Author not found"
-        )
-
-    author_dto = AuthorId.model_validate(author)
-
-    return author_dto
+    return await author_service.update_author(author_id, author_update, partial=True)
 
 
 @router.delete(
@@ -109,15 +75,11 @@ async def update_author_partial(
     summary="Видалити одного автора",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def author_delete(
+async def delete_author(
     author_id: int,
-    author_repo: Annotated["AuthorsRepository", Depends(get_author_repository)],
-):
-    author_op_delete = await author_repo.delete_author(author_id)
-    if not author_op_delete:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Author not found"
-        )
+    author_service: Annotated[AuthorsService, Depends(get_author_service)],
+) -> None:
+    await author_service.delete_author(author_id)
 
 
 @router.delete(
@@ -125,7 +87,7 @@ async def author_delete(
     summary="Видалити всіх авторів з таблиці",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def authors_delete(
-    author_repo: Annotated["AuthorsRepository", Depends(get_author_repository)],
-):
-    return await author_repo.delete_all_authors()
+async def delete_authors(
+    author_service: Annotated[AuthorsService, Depends(get_author_service)],
+) -> None:
+    await author_service.delete_all_authors()

@@ -1,15 +1,13 @@
-from fastapi import APIRouter, HTTPException, status, Depends
-import logging
+from typing import Annotated
 
+from fastapi import APIRouter, status, Depends
 from fastapi_cache.decorator import cache
 
 from src.core.utils import custom_key_builder
 from src.core.config import settings
 from .schemas import BookId, BookUpdatePartial, BookUpdate, BookCreate
-from .book_repository import BookRepository
-from .dependencies import get_book_repository
-
-logger = logging.getLogger(__name__)
+from .dependencies import get_book_service
+from .service import BooksService
 
 router = APIRouter(prefix="/books", tags=["Книги"])
 
@@ -20,10 +18,10 @@ router = APIRouter(prefix="/books", tags=["Книги"])
     namespace=settings.cache.namespace.books.books_list,
     key_builder=custom_key_builder,
 )
-async def get_books(book_repo: BookRepository = Depends(get_book_repository)):
-    books = await book_repo.get_books()
-
-    return [BookId.model_validate(book, from_attributes=True) for book in books]
+async def get_books(
+    book_service: Annotated[BooksService, Depends(get_book_service)],
+) -> list[BookId]:
+    return await book_service.get_books()
 
 
 @router.get("/{book_id}", summary="Отримати одну книгу", response_model=BookId)
@@ -34,17 +32,9 @@ async def get_books(book_repo: BookRepository = Depends(get_book_repository)):
 )
 async def get_book(
     book_id: int,
-    book_repo: BookRepository = Depends(get_book_repository),
-):
-    book = await book_repo.get_book(book_id)
-
-    if not book:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Книгу з ID {book_id} не знайдено",
-        )
-
-    return BookId.model_validate(book, from_attributes=True)
+    book_service: Annotated[BooksService, Depends(get_book_service)],
+) -> BookId:
+    return await book_service.get_book(book_id)
 
 
 @router.post(
@@ -55,17 +45,9 @@ async def get_book(
 )
 async def create_book(
     new_book: BookCreate,
-    book_repo: BookRepository = Depends(get_book_repository),
+    book_service: Annotated[BooksService, Depends(get_book_service)],
 ) -> BookId:
-    created_book = await book_repo.create_book(new_book=new_book)
-
-    if not created_book:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Неможливо створити книгу. Перевірте валідність введених данних.",
-        )
-
-    return BookId.model_validate(created_book, from_attributes=True)
+    return await book_service.create_book(new_book=new_book)
 
 
 @router.put(
@@ -76,17 +58,9 @@ async def create_book(
 async def update_book(
     book_id: int,
     book_update: BookUpdate,
-    book_repo: BookRepository = Depends(get_book_repository),
+    book_service: Annotated[BooksService, Depends(get_book_service)],
 ) -> BookId:
-    updated_book = await book_repo.update_book(book_id=book_id, book_update=book_update)
-
-    if not updated_book:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Книгу з ID {book_id} не знайдено або вказаного автора не існує.",
-        )
-
-    return BookId.model_validate(updated_book, from_attributes=True)
+    return await book_service.update_book(book_id=book_id, book_update=book_update)
 
 
 @router.patch(
@@ -97,19 +71,11 @@ async def update_book(
 async def update_book_partial(
     book_id: int,
     book_update: BookUpdatePartial,
-    book_repo: BookRepository = Depends(get_book_repository),
+    book_service: Annotated[BooksService, Depends(get_book_service)],
 ) -> BookId:
-    updated_book = await book_repo.update_book(
+    return await book_service.update_book(
         book_id=book_id, book_update=book_update, partial=True
     )
-
-    if not updated_book:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Книгу з ID {book_id} не знайдено або вказаного автора не існує.",
-        )
-
-    return BookId.model_validate(updated_book, from_attributes=True)
 
 
 @router.delete(
@@ -117,22 +83,15 @@ async def update_book_partial(
 )
 async def delete_book(
     book_id: int,
-    book_repo: BookRepository = Depends(get_book_repository),
-):
-    success = await book_repo.delete_book(book_id)
-
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Книгу з ID {book_id} не знайдено, видалення неможливе.",
-        )
-
-    return None
+    book_service: Annotated[BooksService, Depends(get_book_service)],
+) -> None:
+    await book_service.delete_book(book_id)
 
 
 @router.delete(
     "/", summary="Видалити всі книги", status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_books(book_repo: BookRepository = Depends(get_book_repository)):
-    await book_repo.delete_all_books()
-    return None
+async def delete_books(
+    book_service: Annotated[BooksService, Depends(get_book_service)],
+) -> None:
+    await book_service.delete_all_books()
