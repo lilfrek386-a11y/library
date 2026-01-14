@@ -1,5 +1,9 @@
-from pydantic import BaseModel, Field
+from pathlib import Path
+
+from pydantic import Field, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = (Path(__file__)).parent.parent
 
 
 class DBConfig(BaseSettings):
@@ -26,28 +30,38 @@ class RedisConfig(BaseSettings):
         env_file=".env", env_prefix="REDIS_", extra="ignore"
     )
 
-class AuthorsNamespace(BaseSettings):
+
+class AuthorsNamespace(BaseModel):
     authors_list: str = "authors_list"
     author: str = "author"
 
-class BooksNamespace(BaseSettings):
+
+class BooksNamespace(BaseModel):
     books_list: str = "books_list"
     book: str = "book"
 
-class CacheNamespace(BaseSettings):
+
+class CacheNamespace(BaseModel):
     authors: AuthorsNamespace = AuthorsNamespace()
     books: BooksNamespace = BooksNamespace()
 
 
-class CacheConfig(BaseSettings):
+class CacheConfig(BaseModel):
     prefix: str = "cache"
     namespace: CacheNamespace = CacheNamespace()
+
+
+class AuthJWT(BaseModel):
+    private_key_path: Path = BASE_DIR / "certs" / "jwt-private.pem"
+    public_key_path: Path = BASE_DIR / "certs" / "jwt-public.pem"
+    algorithm: str = "RS256"
 
 
 class Settings(BaseSettings):
     db: DBConfig = DBConfig()
     redis: RedisConfig = RedisConfig()
     cache: CacheConfig = CacheConfig()
+    auth_jwt: AuthJWT = AuthJWT()
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
